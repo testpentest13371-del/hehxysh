@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мастер На Все Руки</title>
+  <style>
+    :root {
+      --pink: #FFB6C1;
+      --lavender: #E6E6FA;
+      --gold: #FFD700;
+      --green: #4CAF50;
+      --red: #E74C3C;
+      --dark: #2C3E50;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--pink), var(--lavender));
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 480px;
+      min-height: 600px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      overflow: hidden;
+      position: relative;
+      margin: 10px;
+    }
+
+    .screen { display: none; flex-direction: column; align-items: center; padding: 30px 20px; min-height: 600px; }
+    .screen.active { display: flex; }
+
+    /* === TITLE SCREEN === */
+    #title-screen { justify-content: center; gap: 20px; text-align: center; }
+    .title-emoji { font-size: 80px; animation: bounce 2s infinite; }
+    .title-name { font-size: 28px; font-weight: 800; color: var(--dark); line-height: 1.2; }
+    .title-sub { font-size: 16px; color: #777; font-style: italic; margin-top: -10px; }
+    .title-desc { font-size: 14px; color: #999; max-width: 350px; line-height: 1.5; margin-top: 10px; }
+
+    .btn {
+      padding: 16px 40px;
+      font-size: 20px;
+      font-weight: 700;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .btn:hover { transform: scale(1.05); }
+    .btn:active { transform: scale(0.95); }
+    .btn-start { background: linear-gradient(135deg, #E91E63, #9C27B0); margin-top: 20px; }
+    .btn-next { background: linear-gradient(135deg, #2196F3, #00BCD4); }
+    .btn-restart { background: linear-gradient(135deg, #FF9800, #F44336); }
+
+    /* === GAME SCREEN === */
+    #game-screen { padding: 0; gap: 0; }
+
+    .hud {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--dark);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .hud-score { color: var(--gold); }
+
+    .timer-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #ddd;
+    }
+    .timer-bar {
+      height: 100%;
+      background: var(--green);
+      transition: width 0.1s linear, background 0.3s;
+      width: 100%;
+    }
+    .timer-bar.warning { background: #FFC107; }
+    .timer-bar.danger { background: var(--red); }
+
+    .client-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      gap: 10px;
+      width: 100%;
+    }
+    .client-emoji {
+      font-size: 80px;
+      animation: slideIn 0.5s ease-out;
+    }
+    .client-name { font-size: 18px; font-weight: 700; color: var(--dark); }
+    .speech-bubble {
+      background: #f0f0f0;
+      border-radius: 20px;
+      padding: 12px 20px;
+      max-width: 320px;
+      text-align: center;
+      font-size: 15px;
+      color: #555;
+      position: relative;
+      animation: fadeIn 0.5s ease-out 0.2s both;
+    }
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      top: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 10px solid transparent;
+      border-bottom-color: #f0f0f0;
+      border-top: 0;
+    }
+
+    .combo-indicator {
+      display: flex;
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .combo-slot {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 3px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: all 0.3s;
+    }
+    .combo-slot.filled {
+      border-style: solid;
+      border-color: var(--dark);
+      animation: popIn 0.3s ease-out;
+    }
+    .combo-slot.correct { border-color: var(--green); background: #E8F5E9; }
+    .combo-slot.wrong { border-color: var(--red); background: #FFEBEE; }
+
+    .action-bar {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      padding: 16px 12px;
+      background: linear-gradient(0deg, #f8f8f8, #fff);
+      border-top: 1px solid #eee;
+    }
+    .action-btn {
+      flex: 1;
+      padding: 14px 8px;
+      border: 3px solid #ddd;
+      border-radius: 16px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .action-btn:hover { border-color: #aaa; transform: translateY(-2px); }
+    .action-btn:active { transform: scale(0.9); }
+    .action-btn .emoji { font-size: 32px; }
+    .action-btn .label { font-size: 11px; font-weight: 600; color: #777; }
+    .action-btn.btn-massage:active { border-color: #4CAF50; background: #E8F5E9; }
+    .action-btn.btn-makeup:active { border-color: #E91E63; background: #FCE4EC; }
+    .action-btn.btn-dance:active { border-color: #FF9800; background: #FFF3E0; }
+    .action-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+    /* === REVIEW SCREEN === */
+    #review-screen { justify-content: center; gap: 16px; text-align: center; }
+    .review-client { font-size: 60px; }
+    .review-name { font-size: 20px; font-weight: 700; color: var(--dark); }
+    .review-stars { font-size: 40px; letter-spacing: 4px; }
+    .review-stars span { display: inline-block; animation: popIn 0.3s ease-out both; }
+    .review-stars span:nth-child(2) { animation-delay: 0.15s; }
+    .review-stars span:nth-child(3) { animation-delay: 0.3s; }
+    .review-stars span:nth-child(4) { animation-delay: 0.45s; }
+    .review-stars span:nth-child(5) { animation-delay: 0.6s; }
+    .review-comment {
+      font-size: 16px;
+      color: #666;
+      font-style: italic;
+      max-width: 320px;
+      line-height: 1.4;
+      animation: fadeIn 0.5s ease-out 0.8s both;
+    }
+    .review-score { font-size: 14px; color: #999; }
+    .review-combo {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      font-size: 14px;
+      color: #999;
+    }
+
+    /* === GAMEOVER SCREEN === */
+    #gameover-screen { justify-content: center; gap: 16px; text-align: center; }
+    .go-title { font-size: 24px; font-weight: 800; color: var(--dark); }
+    .go-rank { font-size: 20px; color: #E91E63; font-weight: 700; }
+    .go-score { font-size: 48px; font-weight: 800; color: var(--gold); text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .go-stars { font-size: 18px; color: #777; }
+    .go-stats { font-size: 14px; color: #999; line-height: 1.8; }
+
+    /* === ANIMATIONS === */
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0); }
+      70% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.4s ease-out; }
+
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      animation: confetti-fall 1.5s ease-out forwards;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container" id="game">
+    <!-- TITLE SCREEN -->
+    <div class="screen active" id="title-screen">
+      <div class="title-emoji">💆‍♂️💄💃</div>
+      <div class="title-name">Мастер На Все Руки</div>
+      <div class="title-sub">«Салон Три-в-Одном»</div>
+      <div class="title-desc">
+        Вы — не совсем массажист, не совсем визажист и не совсем экзотический дансер.
+        Зато всё сразу!<br><br>
+        Угадайте правильную комбинацию из 3 действий для каждого клиента.
+        Подсказка — в их запросе!
+      </div>
+      <button class="btn btn-start" onclick="startGame()">Начать!</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div class="screen" id="game-screen">
+      <div class="hud">
+        <span>Раунд: <span id="hud-round">1/10</span></span>
+        <span class="hud-score">💰 <span id="hud-score">0</span></span>
+        <span>⏱️ <span id="hud-timer">8.0</span>с</span>
+      </div>
+      <div class="timer-bar-container">
+        <div class="timer-bar" id="timer-bar"></div>
+      </div>
+      <div class="client-area">
+        <div class="client-emoji" id="client-emoji">👴</div>
+        <div class="client-name" id="client-name">Дед Петрович</div>
+        <div class="speech-bubble" id="client-request">Спину бы размять...</div>
+        <div class="combo-indicator" id="combo-indicator">
+          <div class="combo-slot" id="slot-0">?</div>
+          <div class="combo-slot" id="slot-1">?</div>
+          <div class="combo-slot" id="slot-2">?</div>
+        </div>
+      </div>
+      <div class="action-bar">
+        <button class="action-btn btn-massage" onclick="doAction('massage')">
+          <span class="emoji">💆</span>
+          <span class="label">Массаж</span>
+        </button>
+        <button class="action-btn btn-makeup" onclick="doAction('makeup')">
+          <span class="emoji">💄</span>
+          <span class="label">Макияж</span>
+        </button>
+        <button class="action-btn btn-dance" onclick="doAction('dance')">
+          <span class="emoji">💃</span>
+          <span class="label">Танец</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- REVIEW SCREEN -->
+    <div class="screen" id="review-screen">
+      <div class="review-client" id="review-emoji">👴</div>
+      <div class="review-name" id="review-name">Дед Петрович</div>
+      <div class="review-stars" id="review-stars"></div>
+      <div class="review-comment" id="review-comment"></div>
+      <div class="review-combo" id="review-combo"></div>
+      <div class="review-score" id="review-score"></div>
+      <button class="btn btn-next" id="review-btn" onclick="nextRound()">Следующий клиент →</button>
+    </div>
+
+    <!-- GAMEOVER SCREEN -->
+    <div class="screen" id="gameover-screen">
+      <div class="title-emoji">🏆</div>
+      <div class="go-title">Салон закрыт!</div>
+      <div class="go-rank" id="go-rank"></div>
+      <div class="go-score" id="go-score">0</div>
+      <div class="go-stars" id="go-stars"></div>
+      <div class="go-stats" id="go-stats"></div>
+      <button class="btn btn-restart" onclick="startGame()">Ещё разок! 🔄</button>
+    </div>
+  </div>
+
+  <script>
+    // === CLIENT DATA ===
+    const CLIENTS = [
+      { emoji: '👴', name: 'Дед Петрович', request: '«Спину бы размять, внучок...»', combo: ['massage','massage','massage'],
+        successText: 'Ох, золотые руки! Спина как новая!', failText: 'Вы мне макияж на спину нанесли?!' },
+      { emoji: '👰', name: 'Невеста Люда', request: '«Мне на свадьбу краситься! Скоро ЗАГС!»', combo: ['makeup','makeup','makeup'],
+        successText: 'Я прекрасна! Жених упадёт!', failText: 'Я похожа на клоуна из цирка!' },
+      { emoji: '🕺', name: 'Артём-тиктокер', request: '«Братан, научи двигаться! На меня 0 лайков»', combo: ['dance','dance','dance'],
+        successText: 'Огонь! Щас залетит в реки!', failText: 'Это не танец, это припадок!' },
+      { emoji: '👩‍💼', name: 'Бизнес-леди Марина', request: '«Расслабиться, прихорошиться и зажечь на корпоративе!»', combo: ['massage','makeup','dance'],
+        successText: 'Идеально! Контракт в кармане!', failText: 'Я выгляжу на три рубля!' },
+      { emoji: '🤵', name: 'Жених Толик', request: '«Подготовьте к свадьбе — красивый, расслабленный и с танцем!»', combo: ['makeup','massage','dance'],
+        successText: 'Невеста будет в восторге!', failText: 'Невеста меня не узнает!' },
+      { emoji: '👵', name: 'Баба Зина', request: '«Хочу как в молодости — плясать, краситься и отдыхать!»', combo: ['dance','makeup','massage'],
+        successText: 'Ой, я будто помолодела на 40 лет!', failText: 'В молодости я так не страдала!' },
+      { emoji: '🧑‍🎤', name: 'Рок-звезда Вася', request: '«Мне сценический образ — мэйк, движения и ещё мэйк!»', combo: ['makeup','dance','makeup'],
+        successText: 'Рок-н-ролл! Стадион будет мой!', failText: 'Я похож на бухгалтера Петю!' },
+      { emoji: '🏋️', name: 'Качок Серёга', request: '«Всё болит после тренировки! Размять, размяться, и ещё размять!»', combo: ['massage','dance','massage'],
+        successText: 'Мышцы как у Шварценеггера! Спасибо!', failText: 'У меня теперь ещё и лицо болит!' },
+      { emoji: '🤱', name: 'Мамочка Настя', request: '«Мне хоть 5 минут расслабления и привести себя в порядок!»', combo: ['massage','massage','makeup'],
+        successText: 'Я снова чувствую себя человеком!', failText: 'Ребёнок плачет громче меня!' },
+      { emoji: '🎅', name: 'Дед Мороз', request: '«Готовьте к корпоративу! Станцевать, накраситься и расслабиться!»', combo: ['dance','makeup','massage'],
+        successText: 'Хо-хо-хо! Лучший салон в мире!', failText: 'Снегурочка бы лучше справилась!' },
+    ];
+
+    const REACTION_EMOJIS = {
+      good: ['😐','😊','🥰'],
+      bad: ['😐','😰','😱'],
+      timeout: '😴'
+    };
+
+    const TITLES = [
+      { min: 0,  title: '🗑️ Позор салона' },
+      { min: 16, title: '📎 Стажёр-недоучка' },
+      { min: 26, title: '🔧 Мастер-ломастер' },
+      { min: 36, title: '📋 Почти профессионал' },
+      { min: 44, title: '👑 Легенда Три-в-Одном' },
+    ];
+
+    const ACTION_EMOJI = { massage: '💆', makeup: '💄', dance: '💃' };
+
+    // === GAME STATE ===
+    let STATE = {};
+
+    function resetState() {
+      STATE = {
+        round: 0,
+        score: 0,
+        totalStars: 0,
+        actions: [],
+        timerStart: 0,
+        timerDuration: 0,
+        timerInterval: null,
+        timerRaf: null,
+        clients: shuffle([...CLIENTS]),
+        reviews: [],
+        inputLocked: false,
+      };
+    }
+
+    // === UTILS ===
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      // Always put Дед Мороз last (boss round)
+      const dmIdx = arr.findIndex(c => c.emoji === '🎅');
+      if (dmIdx !== -1) {
+        const dm = arr.splice(dmIdx, 1)[0];
+        arr.push(dm);
+      }
+      return arr;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function getTimerForRound(r) {
+      if (r < 3) return 8;
+      if (r < 7) return 6;
+      if (r === 9) return 5; // boss
+      return 4;
+    }
+
+    // === GAME FLOW ===
+    function startGame() {
+      resetState();
+      showScreen('game-screen');
+      nextRound();
+    }
+
+    function nextRound() {
+      if (STATE.round >= 10) {
+        showGameOver();
+        return;
+      }
+
+      const client = STATE.clients[STATE.round];
+      STATE.actions = [];
+      STATE.inputLocked = false;
+      STATE.timerDuration = getTimerForRound(STATE.round);
+      STATE.timerStart = performance.now();
+
+      // Update HUD
+      document.getElementById('hud-round').textContent = `${STATE.round + 1}/10`;
+      document.getElementById('hud-score').textContent = STATE.score;
+
+      // Update client display
+      document.getElementById('client-emoji').textContent = client.emoji;
+      document.getElementById('client-name').textContent = client.name;
+      document.getElementById('client-request').textContent = client.request;
+
+      // Reset combo slots
+      for (let i = 0; i < 3; i++) {
+        const slot = document.getElementById(`slot-${i}`);
+        slot.textContent = '?';
+        slot.className = 'combo-slot';
+      }
+
+      // Enable buttons
+      document.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+
+      // Re-trigger client animation
+      const emojiEl = document.getElementById('client-emoji');
+      emojiEl.style.animation = 'none';
+      emojiEl.offsetHeight;
+      emojiEl.style.animation = '';
+
+      showScreen('game-screen');
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(STATE.timerInterval);
+      cancelAnimationFrame(STATE.timerRaf);
+
+      const bar = document.getElementById('timer-bar');
+      const timerText = document.getElementById('hud-timer');
+
+      function tick() {
+        const elapsed = (performance.now() - STATE.timerStart) / 1000;
+        const remaining = Math.max(0, STATE.timerDuration - elapsed);
+        const pct = (remaining / STATE.timerDuration) * 100;
+
+        bar.style.width = pct + '%';
+        bar.className = 'timer-bar' + (pct < 25 ? ' danger' : pct < 50 ? ' warning' : '');
+        timerText.textContent = remaining.toFixed(1);
+
+        if (remaining <= 0) {
+          timeUp();
+          return;
+        }
+        STATE.timerRaf = requestAnimationFrame(tick);
+      }
+      STATE.timerRaf = requestAnimationFrame(tick);
+    }
+
+    function stopTimer() {
+      cancelAnimationFrame(STATE.timerRaf);
+      clearInterval(STATE.timerInterval);
+    }
+
+    function timeUp() {
+      stopTimer();
+      STATE.inputLocked = true;
+      document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+
+      // Fill remaining slots with ❌
+      for (let i = STATE.actions.length; i < 3; i++) {
+        const slot = document.getElementById(`slot-${i}`);
+        slot.textContent = '⏰';
+        slot.classList.add('filled', 'wrong');
+      }
+
+      document.getElementById('client-emoji').textContent = REACTION_EMOJIS.timeout;
+      setTimeout(() => evaluateRound(true), 800);
+    }
+
+    // === ACTIONS ===
+    function doAction(type) {
+      if (STATE.inputLocked || STATE.actions.length >= 3) return;
+
+      STATE.actions.push(type);
+      const idx = STATE.actions.length - 1;
+      const slot = document.getElementById(`slot-${idx}`);
+      slot.textContent = ACTION_EMOJI[type];
+      slot.classList.add('filled');
+
+      // Update client reaction emoji
+      const client = STATE.clients[STATE.round];
+      const isCorrect = client.combo[idx] === type;
+      const reactions = isCorrect ? REACTION_EMOJIS.good : REACTION_EMOJIS.bad;
+      document.getElementById('client-emoji').textContent = reactions[idx] || reactions[reactions.length - 1];
+
+      if (STATE.actions.length >= 3) {
+        STATE.inputLocked = true;
+        document.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+        stopTimer();
+        setTimeout(() => {
+          // Show correct/wrong on slots
+          for (let i = 0; i < 3; i++) {
+            const s = document.getElementById(`slot-${i}`);
+            s.classList.add(client.combo[i] === STATE.actions[i] ? 'correct' : 'wrong');
+          }
+          if (STATE.actions.every((a, i) => a === client.combo[i])) {
+            // shake not needed for success
+          } else {
+            document.getElementById('game').classList.add('shake');
+            setTimeout(() => document.getElementById('game').classList.remove('shake'), 400);
+          }
+          setTimeout(() => evaluateRound(false), 600);
+        }, 300);
+      }
+    }
+
+    // === EVALUATION ===
+    function evaluateRound(timedOut) {
+      const client = STATE.clients[STATE.round];
+      let correct = 0;
+      for (let i = 0; i < 3; i++) {
+        if (STATE.actions[i] === client.combo[i]) correct++;
+      }
+
+      let roundScore = correct * 100 - (3 - correct) * 50;
+
+      // Completion bonus
+      if (correct === 3) roundScore += 300;
+
+      // Speed bonus
+      const elapsed = (performance.now() - STATE.timerStart) / 1000;
+      const hasSpeedBonus = !timedOut && correct === 3 && elapsed < STATE.timerDuration * 0.5;
+      if (hasSpeedBonus) roundScore += 150;
+
+      roundScore = Math.max(0, roundScore);
+      STATE.score += roundScore;
+
+      // Stars
+      let stars;
+      if (timedOut && STATE.actions.length === 0) stars = 0;
+      else if (correct === 0) stars = 1;
+      else if (correct === 1) stars = 2;
+      else if (correct === 2) stars = 3;
+      else if (hasSpeedBonus) stars = 5;
+      else stars = 4;
+
+      STATE.totalStars += stars;
+      STATE.reviews.push({ client, correct, stars, roundScore });
+
+      // Show review
+      showReview(client, correct, stars, roundScore, timedOut);
+      STATE.round++;
+    }
+
+    function showReview(client, correct, stars, roundScore, timedOut) {
+      document.getElementById('review-emoji').textContent = client.emoji;
+      document.getElementById('review-name').textContent = client.name;
+
+      // Stars
+      const starsEl = document.getElementById('review-stars');
+      starsEl.innerHTML = '';
+      for (let i = 0; i < 5; i++) {
+        const span = document.createElement('span');
+        span.textContent = i < stars ? '⭐' : '☆';
+        starsEl.appendChild(span);
+      }
+
+      // Comment
+      const comment = correct === 3 ? client.successText : (timedOut && STATE.actions.length === 0 ? '«Эй, вы уснули?! Я ухожу!»' : client.failText);
+      document.getElementById('review-comment').textContent = `— ${comment}`;
+
+      // Show the expected vs actual combo
+      const comboEl = document.getElementById('review-combo');
+      const actual = STATE.actions.map(a => ACTION_EMOJI[a]).join(' ');
+      const expected = client.combo.map(a => ACTION_EMOJI[a]).join(' ');
+      comboEl.innerHTML = `Ваше: ${actual || '(ничего)'} &nbsp;|&nbsp; Нужно было: ${expected}`;
+
+      document.getElementById('review-score').textContent = `+${roundScore} очков`;
+
+      // Button text
+      const btn = document.getElementById('review-btn');
+      btn.textContent = STATE.round >= 9 ? 'Результаты 🏆' : 'Следующий клиент →';
+
+      showScreen('review-screen');
+
+      // Confetti for 5 stars
+      if (stars === 5) spawnConfetti();
+    }
+
+    function showGameOver() {
+      document.getElementById('go-score').textContent = STATE.score;
+      document.getElementById('go-stars').textContent = `⭐ ${STATE.totalStars} из 50 звёзд`;
+
+      // Title
+      let title = TITLES[0].title;
+      for (const t of TITLES) {
+        if (STATE.totalStars >= t.min) title = t.title;
+      }
+      document.getElementById('go-rank').textContent = title;
+
+      // Stats
+      const perfect = STATE.reviews.filter(r => r.stars >= 4).length;
+      const terrible = STATE.reviews.filter(r => r.stars <= 1).length;
+      document.getElementById('go-stats').innerHTML =
+        `Отличных обслуживаний: ${perfect}<br>` +
+        `Провалов: ${terrible}<br>` +
+        `Всего очков: ${STATE.score}`;
+
+      showScreen('gameover-screen');
+    }
+
+    // === CONFETTI ===
+    function spawnConfetti() {
+      const container = document.getElementById('game');
+      const colors = ['#E91E63', '#FF9800', '#4CAF50', '#2196F3', '#9C27B0', '#FFD700'];
+      for (let i = 0; i < 30; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + '%';
+        c.style.background = colors[Math.floor(Math.random() * colors.length)];
+        c.style.animationDelay = Math.random() * 0.5 + 's';
+        c.style.animationDuration = (1 + Math.random()) + 's';
+        container.appendChild(c);
+        setTimeout(() => c.remove(), 2000);
+      }
+    }
+  </script>
+</body>
+</html>
